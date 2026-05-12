@@ -46,6 +46,11 @@
         "typescript": "^5.7.0",
         "zod": "^3.24.0"
     },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Bunch-Projects/ezRPC.git",
+        "directory": "packages/mssql"
+    },
     "publishConfig": {
         "access": "public"
     }

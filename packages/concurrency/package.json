@@ -34,6 +34,11 @@
         "tsup": "^8.0.0",
         "typescript": "^5.7.0"
     },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Bunch-Projects/ezRPC.git",
+        "directory": "packages/concurrency"
+    },
     "publishConfig": {
         "access": "public"
     }

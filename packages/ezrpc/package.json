@@ -1,7 +1,7 @@
 {
-    "name": "ez-rpc",
+    "name": "@ez-rpc/ez-rpc",
     "version": "0.1.0",
-    "description": "Type-safe contract-first RPC layer for Express + Next.js. Define Zod schemas once, get validated server routes and typed fetch clients for free.",
+    "description": "Type-safe contract-first RPC layer for monorepos with an Express API. Define Zod schemas once, get validated server routes and typed fetch clients for free.",
     "author": "Kaiden Flaig",
     "license": "MIT",
     "type": "module",
@@ -85,7 +85,8 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/YOUR_ORG/ezrpc"
+        "url": "git+https://github.com/Bunch-Projects/ezRPC.git",
+        "directory": "packages/ezrpc"
     },
     "publishConfig": {
         "access": "public"

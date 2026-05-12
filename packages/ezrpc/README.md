@@ -1,25 +1,25 @@
-# ez-rpc
+# @ez-rpc/ez-rpc
 
-[![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc)
-[![license](https://img.shields.io/npm/l/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
+[![npm](https://img.shields.io/npm/v/@ez-rpc/ez-rpc)](https://www.npmjs.com/package/@ez-rpc/ez-rpc)
+[![license](https://img.shields.io/npm/l/@ez-rpc/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
 
-ez-rpc is a lightweight RPC layer for Express + Next.js monorepos. Define your API once as Zod schemas and get a validated Express router on the server and a fully typed fetch client on the front end — no codegen, no duplicated types, no `any`.
+@ez-rpc/ez-rpc is a lightweight RPC layer for monorepos with an Express API. Define your API once as Zod schemas and get a validated Express router on the server and a fully typed fetch client on the front end — no codegen, no duplicated types, no `any`.
 
 This is the umbrella package. It re-exports everything from the ez-rpc ecosystem:
 
 | Import | Contains |
 |---|---|
-| `ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
-| `ez-rpc/server` | Express router, MSSQL adapter, concurrency queue — Node.js only |
-| `ez-rpc/client` | Fetch client — browser and SSR safe |
+| `@ez-rpc/ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
+| `@ez-rpc/ez-rpc/server` | Express router, MSSQL adapter, concurrency queue — Node.js only |
+| `@ez-rpc/ez-rpc/client` | Fetch client — browser and SSR safe |
 
 ## Install
 
 ```bash
-npm install ez-rpc zod
+npm install @ez-rpc/ez-rpc zod
 
 # Peer dependencies — install what you use:
-npm install express   # for ez-rpc/server
+npm install express   # for @ez-rpc/ez-rpc/server
 npm install mssql     # for createDBService
 ```
 
@@ -28,7 +28,7 @@ npm install mssql     # for createDBService
 ```ts
 // contract/user.ts — imported by both server and client
 import { z } from "zod";
-import type { Endpoint } from "ez-rpc";
+import type { Endpoint } from "@ez-rpc/ez-rpc";
 
 const UserSchema = z.object({ id: z.string(), name: z.string(), email: z.string().email() });
 
@@ -41,7 +41,7 @@ export const userEndpoints = {
 } as const;
 
 // server/routes/user.ts
-import { createRouter } from "ez-rpc/server";
+import { createRouter } from "@ez-rpc/ez-rpc/server";
 import { userEndpoints } from "../../contract/user";
 
 export const userRouter = createRouter(userEndpoints, authMiddleware).implement({
@@ -51,7 +51,7 @@ export const userRouter = createRouter(userEndpoints, authMiddleware).implement(
 app.use("/user", userRouter);
 
 // web-client/api/userApi.ts
-import { createApiClient } from "ez-rpc/client";
+import { createApiClient } from "@ez-rpc/ez-rpc/client";
 import { userEndpoints } from "../../contract/user";
 
 export const userApi = createApiClient(userEndpoints, "/user");

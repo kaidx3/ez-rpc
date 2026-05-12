@@ -1,9 +1,9 @@
-# ez-rpc
+# @ez-rpc/ez-rpc
 
-[![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc)
-[![license](https://img.shields.io/npm/l/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
+[![npm](https://img.shields.io/npm/v/@ez-rpc/ez-rpc)](https://www.npmjs.com/package/@ez-rpc/ez-rpc)
+[![license](https://img.shields.io/npm/l/@ez-rpc/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
 
-ez-rpc is a lightweight RPC layer for Express + Next.js monorepos. You define your API as plain Zod schemas, and it handles the rest — validated routes on the server, a typed fetch client on the front end, no codegen required.
+ez-rpc is a lightweight RPC layer for monorepos with an Express API. You define your API as plain Zod schemas, and it handles the rest — validated routes on the server, a typed fetch client on the front end, no codegen required.
 
 The problem it solves: in a TypeScript monorepo, your server and client are almost always out of sync. You change a response shape on the server and the client silently breaks — no red squiggles, no compile error, just a runtime surprise. ez-rpc fixes this by making the Zod schema the single source of truth for both sides. Your API client is fully typed from those schemas, so the moment something is out of sync you get a type error right in your editor. Runtime validation is there too, but the real win is catching it before you even run the code.
 
@@ -13,7 +13,7 @@ The problem it solves: in a TypeScript monorepo, your server and client are almo
 
 | Package | Description | npm |
 |---|---|---|
-| [`ez-rpc`](https://www.npmjs.com/package/ez-rpc) | Umbrella — everything in one install | [![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc) |
+| [`@ez-rpc/ez-rpc`](https://www.npmjs.com/package/@ez-rpc/ez-rpc) | Umbrella — everything in one install | [![npm](https://img.shields.io/npm/v/@ez-rpc/ez-rpc)](https://www.npmjs.com/package/@ez-rpc/ez-rpc) |
 | [`@ez-rpc/core`](https://www.npmjs.com/package/@ez-rpc/core) | Shared types. Zero deps, browser-safe | [![npm](https://img.shields.io/npm/v/@ez-rpc/core)](https://www.npmjs.com/package/@ez-rpc/core) |
 | [`@ez-rpc/router`](https://www.npmjs.com/package/@ez-rpc/router) | Express router with Zod validation, dedup, queuing | [![npm](https://img.shields.io/npm/v/@ez-rpc/router)](https://www.npmjs.com/package/@ez-rpc/router) |
 | [`@ez-rpc/client`](https://www.npmjs.com/package/@ez-rpc/client) | Typed fetch client with retry and streaming | [![npm](https://img.shields.io/npm/v/@ez-rpc/client)](https://www.npmjs.com/package/@ez-rpc/client) |
@@ -25,7 +25,7 @@ The problem it solves: in a TypeScript monorepo, your server and client are almo
 ## Installation
 
 ```bash
-npm install ez-rpc zod
+npm install @ez-rpc/ez-rpc zod
 
 # Peer dependencies — install what you use:
 npm install express        # server
@@ -50,7 +50,7 @@ This file lives in a shared location — both the server and client import it.
 ```ts
 // contract/user.ts
 import { z } from "zod";
-import type { Endpoint } from "ez-rpc";
+import type { Endpoint } from "@ez-rpc/ez-rpc";
 
 const UserSchema = z.object({
   id: z.string(),
@@ -73,7 +73,7 @@ export const userEndpoints = {
 ### 2. Mount the router
 
 ```ts
-import { createRouter } from "ez-rpc/server";
+import { createRouter } from "@ez-rpc/ez-rpc/server";
 import { userEndpoints } from "../../contract/user";
 
 const userRouter = createRouter(userEndpoints, authMiddleware).implement({
@@ -93,7 +93,7 @@ Inputs are validated before your handler runs. Return values are validated befor
 ### 3. Call from the client
 
 ```ts
-import { createApiClient } from "ez-rpc/client";
+import { createApiClient } from "@ez-rpc/ez-rpc/client";
 import { userEndpoints } from "../../contract/user";
 
 export const userApi = createApiClient(userEndpoints, "/user");
@@ -111,7 +111,7 @@ const { data: newUser } = await userApi.createUser({ name: "Alice", email: "alic
 If you have endpoints that run expensive work — report generation, bulk exports, slow DB queries — you can cap how many run at once without any queue infrastructure.
 
 ```ts
-import { createConcurrencyQueue } from "ez-rpc/server";
+import { createConcurrencyQueue } from "@ez-rpc/ez-rpc/server";
 
 const reportQueue = createConcurrencyQueue({ globalCap: 4, perUserCap: 1 });
 
@@ -198,6 +198,6 @@ DB columns like `FirstName`, `first_name`, or `FIRST_NAME` all map to `firstName
 
 | Import | Contains |
 |---|---|
-| `ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
-| `ez-rpc/server` | Express router, DB service, concurrency queue — Node.js only |
-| `ez-rpc/client` | Fetch client — browser and SSR safe |
+| `@ez-rpc/ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
+| `@ez-rpc/ez-rpc/server` | Express router, DB service, concurrency queue — Node.js only |
+| `@ez-rpc/ez-rpc/client` | Fetch client — browser and SSR safe |
