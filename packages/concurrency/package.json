@@ -1,0 +1,40 @@
+{
+    "name": "@ez-rpc/concurrency",
+    "version": "0.1.0",
+    "description": "Async concurrency queue with global, per-user, and per-key caps. Zero dependencies — use standalone in any Node.js project.",
+    "author": "Kaiden Flaig",
+    "license": "MIT",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "typescript",
+        "async",
+        "concurrency",
+        "queue",
+        "rate-limit",
+        "per-user",
+        "throttle",
+        "node"
+    ],
+    "devDependencies": {
+        "tsup": "^8.0.0",
+        "typescript": "^5.7.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

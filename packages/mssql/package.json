@@ -1,0 +1,52 @@
+{
+    "name": "@ez-rpc/mssql",
+    "version": "0.1.0",
+    "description": "MSSQL adapter for ezRPC. Automatic PascalCase/snake_case → camelCase key mapping with Zod validation.",
+    "author": "Kaiden Flaig",
+    "license": "MIT",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@ez-rpc/core": "*"
+    },
+    "keywords": [
+        "typescript",
+        "mssql",
+        "sql-server",
+        "database",
+        "adapter",
+        "zod",
+        "camelcase",
+        "schema-validation",
+        "rpc",
+        "node"
+    ],
+    "peerDependencies": {
+        "mssql": ">=10.0.0",
+        "zod": ">=3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "mssql": "^11.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.7.0",
+        "zod": "^3.24.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

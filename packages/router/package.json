@@ -1,0 +1,54 @@
+{
+    "name": "@ez-rpc/router",
+    "version": "0.1.0",
+    "description": "Type-safe Express router with Zod validation, in-flight deduplication, and concurrency queuing.",
+    "author": "Kaiden Flaig",
+    "license": "MIT",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@ez-rpc/concurrency": "*",
+        "@ez-rpc/core": "*"
+    },
+    "keywords": [
+        "typescript",
+        "express",
+        "router",
+        "zod",
+        "validation",
+        "rpc",
+        "api",
+        "type-safe",
+        "middleware",
+        "contract-first"
+    ],
+    "peerDependencies": {
+        "express": ">=4.0.0",
+        "zod": ">=3.0.0"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.0",
+        "@types/node": "^22.0.0",
+        "express": "^5.0.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.7.0",
+        "zod": "^3.24.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
