@@ -1,60 +1,51 @@
-# ezRPC
+# ez-rpc
 
-Type-safe, contract-first RPC for Express + Next.js monorepos.
+[![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc)
+[![license](https://img.shields.io/npm/l/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
 
-Define Zod schemas once. Get validated server routes and typed fetch clients automatically — no code generation, no runtime magic, no `any`.
+ez-rpc is a lightweight RPC layer for Express + Next.js monorepos. You define your API as plain Zod schemas, and it handles the rest — validated routes on the server, a typed fetch client on the front end, no codegen required.
+
+The problem it solves: in a TypeScript monorepo, your server and client are almost always out of sync. You change a response shape on the server and the client silently breaks — no red squiggles, no compile error, just a runtime surprise. ez-rpc fixes this by making the Zod schema the single source of truth for both sides. Your API client is fully typed from those schemas, so the moment something is out of sync you get a type error right in your editor. Runtime validation is there too, but the real win is catching it before you even run the code.
 
 ---
 
 ## Packages
 
-This is a monorepo. Install only what you need:
-
 | Package | Description | npm |
 |---|---|---|
-| `ez-rpc` | Umbrella — re-exports everything | [![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc) |
-| `@ez-rpc/core` | Shared types + error factories. Zero deps, browser-safe | [![npm](https://img.shields.io/npm/v/@ez-rpc/core)](https://www.npmjs.com/package/@ez-rpc/core) |
-| `@ez-rpc/router` | Type-safe Express router (Zod validation, dedup, queuing) | [![npm](https://img.shields.io/npm/v/@ez-rpc/router)](https://www.npmjs.com/package/@ez-rpc/router) |
-| `@ez-rpc/client` | Typed fetch client (HMAC signing, retry, NDJSON streaming) | [![npm](https://img.shields.io/npm/v/@ez-rpc/client)](https://www.npmjs.com/package/@ez-rpc/client) |
-| `@ez-rpc/mssql` | MSSQL adapter (auto key mapping, Zod validation) | [![npm](https://img.shields.io/npm/v/@ez-rpc/mssql)](https://www.npmjs.com/package/@ez-rpc/mssql) |
-| `@ez-rpc/concurrency` | Async concurrency queue (global/per-user/per-key caps). Zero deps | [![npm](https://img.shields.io/npm/v/@ez-rpc/concurrency)](https://www.npmjs.com/package/@ez-rpc/concurrency) |
-
----
-
-## Core Idea
-
-```
-contract (Zod schemas + endpoint flags)
-    ↓                        ↓
-createRouter (server)    createApiClient (client)
-    ↓                        ↓
-Express routes           Typed fetch functions
-validated in+out         auto-signed + deduped
-```
-
-The schemas are the single source of truth. Every HTTP boundary is validated against them — inputs on the way in, outputs on the way out.
+| [`ez-rpc`](https://www.npmjs.com/package/ez-rpc) | Umbrella — everything in one install | [![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc) |
+| [`@ez-rpc/core`](https://www.npmjs.com/package/@ez-rpc/core) | Shared types. Zero deps, browser-safe | [![npm](https://img.shields.io/npm/v/@ez-rpc/core)](https://www.npmjs.com/package/@ez-rpc/core) |
+| [`@ez-rpc/router`](https://www.npmjs.com/package/@ez-rpc/router) | Express router with Zod validation, dedup, queuing | [![npm](https://img.shields.io/npm/v/@ez-rpc/router)](https://www.npmjs.com/package/@ez-rpc/router) |
+| [`@ez-rpc/client`](https://www.npmjs.com/package/@ez-rpc/client) | Typed fetch client with retry and streaming | [![npm](https://img.shields.io/npm/v/@ez-rpc/client)](https://www.npmjs.com/package/@ez-rpc/client) |
+| [`@ez-rpc/mssql`](https://www.npmjs.com/package/@ez-rpc/mssql) | MSSQL query wrapper with automatic camelCase mapping | [![npm](https://img.shields.io/npm/v/@ez-rpc/mssql)](https://www.npmjs.com/package/@ez-rpc/mssql) |
+| [`@ez-rpc/concurrency`](https://www.npmjs.com/package/@ez-rpc/concurrency) | Async concurrency queue with per-user and per-key caps. Zero deps | [![npm](https://img.shields.io/npm/v/@ez-rpc/concurrency)](https://www.npmjs.com/package/@ez-rpc/concurrency) |
 
 ---
 
 ## Installation
 
 ```bash
-# Grab the umbrella (pulls in everything)
 npm install ez-rpc zod
 
-# Or install only what you need:
-npm install @ez-rpc/core zod
+# Peer dependencies — install what you use:
+npm install express        # server
+npm install mssql          # if using createDBService
+```
+
+Or install only what you need:
+
+```bash
 npm install @ez-rpc/router express zod
 npm install @ez-rpc/client zod
-npm install @ez-rpc/mssql mssql zod
-npm install @ez-rpc/concurrency   # zero deps
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Define a contract
+### 1. Define your endpoints
+
+This file lives in a shared location — both the server and client import it.
 
 ```ts
 // contract/user.ts
@@ -67,136 +58,92 @@ const UserSchema = z.object({
   email: z.string().email(),
 });
 
-const CreateUserSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-});
-
 export const userEndpoints = {
   getUsers: {
     output: z.array(UserSchema),
   } satisfies Endpoint,
 
   createUser: {
-    input: CreateUserSchema,
+    input: z.object({ name: z.string().min(1), email: z.string().email() }),
     output: UserSchema,
   } satisfies Endpoint,
 } as const;
 ```
 
-### 2. Wire up the server
+### 2. Mount the router
 
 ```ts
-// server/routes/user.ts
 import { createRouter } from "ez-rpc/server";
 import { userEndpoints } from "../../contract/user";
-import { getUsersService, createUserService } from "../services/user";
 
-export const userRouter = createRouter(userEndpoints, authMiddleware).implement({
+const userRouter = createRouter(userEndpoints, authMiddleware).implement({
   getUsers: {
-    handler: async (_input, req) => getUsersService(req.pool),
+    handler: async (_input, req) => getUsersFromDB(req.pool),
   },
   createUser: {
-    handler: async (input, req) => createUserService(req.pool, input),
+    handler: async (input, req) => createUserInDB(req.pool, input),
   },
 });
 
-// server/index.ts
 app.use("/user", userRouter);
 ```
 
-### 3. Use the client
+Inputs are validated before your handler runs. Return values are validated before they're sent. Both use the schemas from your contract — nothing to keep in sync.
+
+### 3. Call from the client
 
 ```ts
-// web-client/utils/api/userApi.ts
 import { createApiClient } from "ez-rpc/client";
 import { userEndpoints } from "../../contract/user";
 
 export const userApi = createApiClient(userEndpoints, "/user");
 
-// In a component:
 const { data: users } = await userApi.getUsers();
 const { data: newUser } = await userApi.createUser({ name: "Alice", email: "alice@example.com" });
 ```
 
----
-
-## MSSQL Adapter
-
-`createDBService` wraps MSSQL queries with automatic camelCase key mapping (DB column names → Zod schema keys) and output validation.
-
-```ts
-import { createDBService } from "ez-rpc/server";
-import { z } from "zod";
-
-const UserSchema = z.object({
-  id: z.string(),
-  firstName: z.string(),  // maps from DB's "FirstName" or "first_name" automatically
-  email: z.string(),
-});
-
-export const getUsers = createDBService<{ orgId: string }>()
-  .query((req, params) =>
-    req.query`SELECT * FROM dbo.view_Users WHERE OrgID = ${params.orgId}`
-  )
-  .output(z.array(UserSchema));
-
-// Usage in a handler:
-const users = await getUsers(req.pool, { orgId: "123" });
-```
-
-Chain `.log()` to record service calls to your audit table (register a logger once at startup):
-
-```ts
-import { registerServiceCallLogger } from "ez-rpc/server";
-
-registerServiceCallLogger(async (ctx, { userId, action }) => {
-  await ctx.request().query`
-    INSERT INTO dbo.ServiceCallLogs (UserID, Action, CreatedAt)
-    VALUES (${userId}, ${action}, GETDATE())
-  `;
-});
-```
+`userApi.getUsers()` and `userApi.createUser()` are fully typed — argument types and return types both come from the Zod schemas in your contract. No type assertions, no manual interface definitions.
 
 ---
 
 ## Concurrency Queuing
 
-Prevent expensive queries from monopolizing the DB pool:
+If you have endpoints that run expensive work — report generation, bulk exports, slow DB queries — you can cap how many run at once without any queue infrastructure.
 
 ```ts
-import { createConcurrencyQueue, createRouter } from "ez-rpc/server";
+import { createConcurrencyQueue } from "ez-rpc/server";
 
 const reportQueue = createConcurrencyQueue({ globalCap: 4, perUserCap: 1 });
 
 const router = createRouter(reportEndpoints, authMiddleware).implement({
   generateReport: {
     handler: generateReportHandler,
-    queue: {
-      queue: reportQueue,
-      key: (input, req) => input.costCenterId,
-    },
+    queue: { queue: reportQueue, key: (input) => input.projectId },
   },
 });
 ```
 
+`perUserCap: 1` means each user can only have one in-flight report at a time. `globalCap: 4` caps the total. Requests beyond the cap wait in a FIFO queue in memory.
+
+See [`@ez-rpc/concurrency`](https://www.npmjs.com/package/@ez-rpc/concurrency) — it has no dependencies and works standalone outside of ez-rpc if you want just the queue.
+
 ---
 
-## Streaming (NDJSON)
+## NDJSON Streaming
 
-Mark an endpoint with `streaming: true` and write rows to the response as they arrive:
+For endpoints that return a lot of data, mark them `streaming: true` and write rows as they come in. The client collects everything and resolves when the stream closes.
 
 ```ts
 // Contract
-export const bigReportEndpoints = {
+export const reportEndpoints = {
   streamReport: {
     input: ReportInputSchema,
-    output: ReportRowSchema,  // schema for one row
+    output: ReportRowSchema,
     streaming: true,
   },
 } satisfies Record<string, Endpoint>;
 
-// Server handler — write rows yourself
+// Server
 const handler = async (input, req, res) => {
   res.setHeader("Content-Type", "application/x-ndjson");
   for await (const row of streamFromDB(req.pool, input)) {
@@ -205,10 +152,9 @@ const handler = async (input, req, res) => {
   res.end();
 };
 
-// Client — resolves to ApiResponse<ReportRow[]> once stream completes
+// Client
 const { data: rows } = await reportApi.streamReport(input, {
   onProgress: (count) => setRowCount(count),
-  onStatusMessage: (msg) => setStatus(msg),
 });
 ```
 
@@ -216,44 +162,42 @@ const { data: rows } = await reportApi.streamReport(input, {
 
 ## Request Signing
 
-`createApiClient` automatically HMAC-signs every request using `SHA-256`. The server's `authorizeUser` middleware verifies the signature, timestamp, and Bearer token. Configure the shared secret:
+The client can HMAC-sign every request with a shared secret. The server middleware verifies the signature and timestamp before the handler runs.
 
 ```ts
 // Client
-const api = createApiClient(endpoints, "/user", {
+const api = createApiClient(endpoints, "/reports", {
   baseUrl: process.env.NEXT_PUBLIC_API_URL,
   appSecret: process.env.NEXT_PUBLIC_APP_SECRET,
 });
-```
 
-```ts
-// Server (via environment variable)
-process.env.APP_SECRET = "your-secret";
+// Server reads from APP_SECRET env var automatically
 ```
 
 ---
 
-## Key Features
+## MSSQL
 
-| Feature | Details |
-|---|---|
-| **Input validation** | Zod schema validated on every POST; 400 on failure |
-| **Output validation** | Return value validated before send; 500 on schema mismatch |
-| **Key mapping** | DB `PascalCase`/`snake_case` → camelCase schema keys automatically |
-| **Deduplication** | Identical concurrent requests resolved from one in-flight promise |
-| **Retry + timeout** | 1 retry with exponential backoff, 5 min timeout by default |
-| **Concurrency queuing** | Global, per-user, per-key caps via `createConcurrencyQueue` |
-| **Streaming** | NDJSON streaming with progress callbacks |
-| **Auth** | HMAC-SHA-256 request signing out of the box |
-| **Type safety** | Full end-to-end inference, zero `any` |
+[`@ez-rpc/mssql`](https://www.npmjs.com/package/@ez-rpc/mssql) is a separate package that wraps `mssql` queries with Zod validation and automatic column name mapping. It's designed to work with ez-rpc but is completely independent — you can use it without any other ez-rpc packages.
+
+```ts
+import { createDBService } from "@ez-rpc/mssql";
+
+export const getUsers = createDBService<{ orgId: string }>()
+  .query((req, params) =>
+    req.query`SELECT * FROM dbo.view_Users WHERE OrgID = ${params.orgId}`
+  )
+  .output(z.array(UserSchema)); // UserSchema uses camelCase — mapping is automatic
+```
+
+DB columns like `FirstName`, `first_name`, or `FIRST_NAME` all map to `firstName` in the result. See the [`@ez-rpc/mssql` README](https://www.npmjs.com/package/@ez-rpc/mssql) for full docs.
 
 ---
 
 ## Package Exports
 
-| Import | Use for |
+| Import | Contains |
 |---|---|
-| `ez-rpc` | Shared types only (`Endpoint`, `ApiResponse`) — safe in any context |
-| `ezrpc/server` | Express router, DB service, middleware — Node.js only |
-| `ezrpc/client` | Fetch client — browser and SSR safe |
-# ez-rpc
+| `ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
+| `ez-rpc/server` | Express router, DB service, concurrency queue — Node.js only |
+| `ez-rpc/client` | Fetch client — browser and SSR safe |

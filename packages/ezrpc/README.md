@@ -1,40 +1,43 @@
-# ezrpc
+# ez-rpc
 
 [![npm](https://img.shields.io/npm/v/ez-rpc)](https://www.npmjs.com/package/ez-rpc)
 [![license](https://img.shields.io/npm/l/ez-rpc)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
 
-Type-safe, contract-first RPC for Express + Next.js monorepos.
+ez-rpc is a lightweight RPC layer for Express + Next.js monorepos. Define your API once as Zod schemas and get a validated Express router on the server and a fully typed fetch client on the front end — no codegen, no duplicated types, no `any`.
 
-Define Zod schemas once. Get validated server routes and a typed fetch client automatically — no code generation, no runtime magic, no `any`.
+This is the umbrella package. It re-exports everything from the ez-rpc ecosystem:
 
-This is the umbrella package. It re-exports everything from the ezRPC ecosystem via three import paths:
-
-| Import | Use for |
+| Import | Contains |
 |---|---|
-| `ez-rpc` | Shared types only — safe in browser, edge, or SSR |
-| `ezrpc/server` | Express router, DB adapter, concurrency queue — Node.js only |
-| `ezrpc/client` | Typed fetch client — browser and SSR safe |
+| `ez-rpc` | Shared types (`Endpoint`, `ApiResponse`) — safe anywhere |
+| `ez-rpc/server` | Express router, MSSQL adapter, concurrency queue — Node.js only |
+| `ez-rpc/client` | Fetch client — browser and SSR safe |
 
 ## Install
 
 ```bash
 npm install ez-rpc zod
 
-# Peer deps (install what you use):
-npm install express        # if using ezrpc/server
-npm install mssql          # if using createDBService from ezrpc/server
+# Peer dependencies — install what you use:
+npm install express   # for ez-rpc/server
+npm install mssql     # for createDBService
 ```
 
 ## Quick start
 
 ```ts
-// contract/user.ts — shared between server and client
+// contract/user.ts — imported by both server and client
 import { z } from "zod";
 import type { Endpoint } from "ez-rpc";
 
+const UserSchema = z.object({ id: z.string(), name: z.string(), email: z.string().email() });
+
 export const userEndpoints = {
   getUsers: { output: z.array(UserSchema) } satisfies Endpoint,
-  createUser: { input: CreateSchema, output: UserSchema } satisfies Endpoint,
+  createUser: {
+    input: z.object({ name: z.string(), email: z.string().email() }),
+    output: UserSchema,
+  } satisfies Endpoint,
 } as const;
 
 // server/routes/user.ts
@@ -42,8 +45,8 @@ import { createRouter } from "ez-rpc/server";
 import { userEndpoints } from "../../contract/user";
 
 export const userRouter = createRouter(userEndpoints, authMiddleware).implement({
-  getUsers:   { handler: async (_input, req) => getUsersService(req.pool) },
-  createUser: { handler: async (input, req)  => createUserService(req.pool, input) },
+  getUsers:   { handler: async (_input, req) => getUsersFromDB(req.pool) },
+  createUser: { handler: async (input, req)  => createUserInDB(req.pool, input) },
 });
 app.use("/user", userRouter);
 
@@ -53,22 +56,20 @@ import { userEndpoints } from "../../contract/user";
 
 export const userApi = createApiClient(userEndpoints, "/user");
 
-// In a component — fully typed, no manual type annotations needed
+// fully typed — argument and return types come from your Zod schemas
 const { data: users } = await userApi.getUsers();
+const { data: newUser } = await userApi.createUser({ name: "Alice", email: "alice@example.com" });
 ```
 
-## Selective installation
-
-If you only need part of the ecosystem, install individual packages instead:
+## Install only what you need
 
 ```bash
-npm install @ez-rpc/core zod           # shared types only
-npm install @ez-rpc/router express zod  # server-side router
-npm install @ez-rpc/client zod          # fetch client
-npm install @ez-rpc/mssql mssql zod     # MSSQL adapter
-npm install @ez-rpc/concurrency         # async queue (zero deps)
+npm install @ez-rpc/router express zod   # server only
+npm install @ez-rpc/client zod           # client only
+npm install @ez-rpc/mssql mssql zod      # MSSQL query wrapper (standalone)
+npm install @ez-rpc/concurrency          # async concurrency queue (zero deps)
 ```
 
 ## Full docs
 
-See the [ezRPC monorepo README](https://github.com/Bunch-Projects/ezRPC) for the full feature guide: MSSQL key mapping, NDJSON streaming, concurrency queuing, HMAC signing, and more.
+See the [ez-rpc README](https://github.com/Bunch-Projects/ezRPC) for streaming, concurrency queuing, HMAC signing, MSSQL key mapping, and more.

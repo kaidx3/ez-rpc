@@ -3,9 +3,9 @@
 [![npm](https://img.shields.io/npm/v/@ez-rpc/concurrency)](https://www.npmjs.com/package/@ez-rpc/concurrency)
 [![license](https://img.shields.io/npm/l/@ez-rpc/concurrency)](https://github.com/Bunch-Projects/ezRPC/blob/main/LICENSE)
 
-Async concurrency queue with global, per-user, and per-key caps. **Zero dependencies** — use it standalone in any Node.js project, no ezRPC required.
+A small async concurrency queue with global, per-user, and per-key caps. Zero dependencies. Works in any Node.js project — no other ez-rpc packages required.
 
-Useful for preventing expensive operations (DB queries, report generation, file processing) from overwhelming your server when many users hit them simultaneously.
+The use case: you have an endpoint that does something expensive — generates a report, kicks off a bulk export, runs a slow query. Without any throttling, 50 users hitting it at once will lock up your DB pool or spike your CPU. This package lets you cap how many run concurrently, with separate limits per user so one person can't starve everyone else.
 
 ## Install
 
@@ -19,16 +19,22 @@ npm install @ez-rpc/concurrency
 import { createConcurrencyQueue } from "@ez-rpc/concurrency";
 
 const queue = createConcurrencyQueue({
-  globalCap: 4,    // at most 4 concurrent executions across all users
-  perUserCap: 1,   // each user can only run 1 at a time
-  perKeyCap: 1,    // optional: at most 1 per arbitrary key (e.g. per-resource)
+  globalCap: 4,   // max 4 running at once across all users
+  perUserCap: 1,  // each user gets at most 1 slot
 });
 
-// Run something through the queue:
 const result = await queue.run(
-  () => doExpensiveWork(params),
-  { userId: req.user.id, key: params.resourceId }
+  () => generateReport(params),
+  { userId: req.user.id }
 );
+```
+
+Requests beyond the cap wait in a FIFO queue and run as slots open. You can also scope limits by an arbitrary key — useful when the bottleneck is per-resource rather than per-user:
+
+```ts
+const queue = createConcurrencyQueue({ globalCap: 10, perKeyCap: 2 });
+
+await queue.run(() => processFile(fileId), { key: fileId });
 ```
 
 ## API
@@ -38,33 +44,32 @@ const result = await queue.run(
 | Option | Type | Description |
 |---|---|---|
 | `globalCap` | `number` | Max total concurrent executions |
-| `perUserCap` | `number?` | Max concurrent executions per `userId` |
-| `perKeyCap` | `number?` | Max concurrent executions per `key` |
+| `perUserCap` | `number?` | Max concurrent per `userId` |
+| `perKeyCap` | `number?` | Max concurrent per `key` |
 
-Returns a `ConcurrencyQueue` with:
+The returned queue has four methods:
 
-- `.run(fn, { userId?, key? })` — enqueue and await `fn`
-- `.queuePosition({ userId?, key? })` — how many are ahead of the next request
-- `.wouldQueue({ userId?, key? })` — `true` if the next request would be queued (not immediate)
-- `.status()` — snapshot of active/queued counts
+- `.run(fn, context?)` — run `fn` when a slot is available, await the result
+- `.status()` — `{ active: number, queued: number }` snapshot
+- `.wouldQueue(context?)` — returns `true` if a new request would have to wait
+- `.queuePosition(context?)` — how many requests are ahead in the queue
 
-FIFO within each cap tier. Requests that exceed a cap wait in memory until a slot opens.
-
-## Integration with ezRPC router
+## With ez-rpc router
 
 ```ts
-import { createConcurrencyQueue, createRouter } from "@ez-rpc/router";
+import { createConcurrencyQueue } from "@ez-rpc/concurrency";
+import { createRouter } from "@ez-rpc/router";
 
 const reportQueue = createConcurrencyQueue({ globalCap: 4, perUserCap: 1 });
 
 const router = createRouter(reportEndpoints, authMiddleware).implement({
   generateReport: {
     handler: generateReportHandler,
-    queue: { queue: reportQueue, key: (input) => input.costCenterId },
+    queue: { queue: reportQueue, key: (input) => input.projectId },
   },
 });
 ```
 
 ## Full docs
 
-See the [ezRPC monorepo README](https://github.com/Bunch-Projects/ezRPC) for the full architecture guide.
+See the [ez-rpc README](https://github.com/Bunch-Projects/ezRPC).
